@@ -3,6 +3,7 @@ package com.turt2live.jlbot;
 import org.pircbotx.PircBotX;
 
 import java.io.*;
+import java.util.Map;
 
 public class ChannelTracker {
 
@@ -25,13 +26,11 @@ public class ChannelTracker {
            Person A leaves
      */
 
-    private boolean sentMessage = false;
-    private long joinTime = 0;
-    private String lastUser = null;
     private long record = Long.MAX_VALUE;
     private String lastRecord = null;
     private PircBotX bot;
     private String channel;
+    private Map<String, userInChannel> nicks;
 
     public ChannelTracker(String channel, PircBotX bot) {
         this.bot = bot;
@@ -39,34 +38,39 @@ public class ChannelTracker {
         load();
     }
 
-    public void onJoin(String nick) {
-        lastUser = nick;
-        joinTime = System.currentTimeMillis();
-    }
-
-    public void onLeave(String nick) {
-        if (nick.equals(lastUser)) {
-            if (sentMessage) {
-                long totalTime = System.currentTimeMillis() - joinTime;
-                if (totalTime < record) {
-                    if (lastRecord != null)
-                        bot.sendIRC().message(channel, nick + " beat the record for shortest time in the channel! Last record was " + toHuman(record) + " and is now " + toHuman(totalTime));
-                    else
-                        bot.sendIRC().message(channel, nick + " has set the record for the shortest time in the channel at " + toHuman(totalTime));
-                    record = totalTime;
-                    lastRecord = nick;
-                    save();
-                }
+    public void checkNicks() {
+        for(String nick: nicks.keySet()) {
+            if(nicks.get(nick).getTimeInChannel()>record) {
+                nicks.remove(nick);
             }
-            lastUser = null;
-            sentMessage = false;
         }
     }
 
+    public void onJoin(String nick) {
+        nicks.put(nick, new userInChannel(nick, System.currentTimeMillis()));
+        checkNicks();
+    }
+
+    public void onLeave(String nick) {
+        if(nicks.containsKey(nick)) {
+            if((nicks.get(nick).getTalked()) && (nicks.get(nick).getTimeInChannel()<record)) {
+                    if (lastRecord != null)
+                        bot.sendIRC().message(channel, nick + " beat the record for shortest time in the channel! Last record was " + toHuman(record) + " and is now " + toHuman(nicks.get(nick).getTimeInChannel()));
+                    else
+                        bot.sendIRC().message(channel, nick + " has set the record for the shortest time in the channel at " + toHuman(nicks.get(nick).getTimeInChannel()));
+                    record = nicks.get(nick).getTimeInChannel();
+                    lastRecord = nick;
+                    save();
+            }
+        }
+    }
+
+
     public void onMessage(String nick) {
-        if (!nick.equals(lastUser)) {
-            lastUser = null;
-        } else sentMessage = true;
+        if (nicks.containsKey(nick)) {
+            nicks.get(nick).setTalked(true);
+        }
+        checkNicks();
     }
 
     public void save() {
@@ -106,5 +110,28 @@ public class ChannelTracker {
 
     public static String toHuman(long time) {
         return time + "ms";
+    }
+}
+
+class userInChannel {
+    private String nick;
+    private boolean talked = false;
+    private long joinTime;
+
+    public userInChannel(String nick, long joinTime) {
+        this.nick = nick;
+        this.joinTime = joinTime;
+    }
+
+    public long getTimeInChannel() {
+        return System.currentTimeMillis() - joinTime;
+    }
+
+    public void setTalked(boolean talked) {
+        this.talked = talked;
+    }
+
+    public boolean getTalked() {
+        return talked;
     }
 }
