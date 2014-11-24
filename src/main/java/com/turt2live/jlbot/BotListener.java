@@ -30,7 +30,7 @@ import java.util.Map;
 
 public class BotListener extends ListenerAdapter<PircBotX> {
 
-    private Map<String, ChannelTracker> trackers = new HashMap<>();
+    private Map<String, ChannelTracker> trackers = new HashMap<String, ChannelTracker>();
 
     @Override
     public void onInvite(InviteEvent<PircBotX> event) throws Exception {
