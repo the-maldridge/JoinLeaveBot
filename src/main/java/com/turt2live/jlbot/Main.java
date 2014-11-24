@@ -33,7 +33,7 @@ public class Main {
         builder.setServerPassword(args[1]);
         builder.setName(args[0]);
         builder.setServer(args[2], 6667);
-        builder.addAutoJoinChannel(args[3]);
+        builder.addAutoJoinChannel("#" + args[3]);
         builder.addListener(new BotListener());
         PircBotX bot = new PircBotX(builder.buildConfiguration());
         bot.startBot();
